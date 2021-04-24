@@ -77,10 +77,12 @@ class StyleTransfer(nn.Module):
             nn.Conv2d(512, 512, (3, 3)),
             nn.ReLU()  # relu5-4
         )
-        self.encoder.load_state_dict(torch.load('../model/vgg_weights'))
+        self.encoder.load_state_dict(torch.load('../models/vgg_weights'))
         self.encoder = nn.Sequential(*list(self.encoder.children())[:31])
+
         for i in self.encoder.parameters():
             i.requires_grad = False
+
         self.encoder = self.encoder.to(device)
 
         self.decoder = nn.Sequential(
@@ -138,4 +140,34 @@ class StyleTransfer(nn.Module):
         self.styleFeatures = self.encoder(styleImage)
         self.target = self.Adain()
         self.target = (self.target * alpha) + (self.contentFeatures * (1-alpha))
+        return self.decoder(self.target)
+
+class StyleTransferInterpolation(StyleTransfer):
+
+    def __init__(self, device='cpu'):
+        super().__init__(device=device)
+
+    def Adain(self, i=0):
+        cF, sF = self.contentFeatures, self.styleFeatures[i]
+
+        return  (
+            torch.std(sF, axis=(2, 3), unbiased=False).reshape(-1, 512, 1, 1) * 
+            (cF - torch.mean(cF, (2, 3)).reshape(-1, 512, 1, 1)) / 
+            (torch.std(cF, axis=(2, 3), unbiased=False).reshape(-1, 512, 1, 1) + 1e-4)
+            ) + \
+            torch.mean(sF, (2, 3)).reshape(-1, 512, 1, 1)
+
+    def forward(self, contentImage, styleImages, weights=None, alpha=1):
+
+        if weights is None:
+            weights = [1/len(styleImages) for i in range(len(styleImages))]
+
+        self.contentFeatures = self.encoder(contentImage)
+        self.styleFeatures = [self.encoder(i) for i in styleImages]
+        
+        self.targets = [self.Adain(i) for i in range(len(self.styleFeatures))]
+        self.target = self.targets[0] * weights[0]
+        for i in range(1, len(weights)):
+            self.target +=  (self.targets[i]*weights[i])
+
         return self.decoder(self.target)
