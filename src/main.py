@@ -10,8 +10,6 @@ from train import trainModel
 from utilities import save_tensor_image, processTestImage, NameExtract, Parser, getDataset
 
 
-TRAINED_WEIGHTS = "adain_trained"
-
 parser = Parser()
 args = parser.parse_args()
 
@@ -28,17 +26,13 @@ if __name__ == '__main__':
 
         contentImage = processTestImage(Image.open(contentImage)).to(device)
         styleImage = processTestImage(Image.open(styleImage)).to(device)
-
-        if args.model:
-            TRAINED_WEIGHTS = args.model
         
         model = StyleTransfer(device)
-        model.load_state_dict(torch.load(TRAINED_WEIGHTS))
+        model.load_state_dict(torch.load(args.model))
 
         styledImage = model(contentImage, styleImage)[0]
         
-        save_tensor_image(styledImage, f"../outputs/{contName}_{styleName}.jpg")
-        save_tensor_image(styledImage, f"../outputs/{contName}_{styleName}_normalized.jpg", False)
+        save_tensor_image(styledImage, f"../outputs/{contName}_{styleName}.jpg", False)
         print("Style Transfer completed! Please view", f"../outputs/{contName}_{styleName}.jpg")
 
     
