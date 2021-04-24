@@ -15,4 +15,9 @@ class EncoderDecoder(nn.Module):
     def style_feature_hook(self, module, input, output):
         self.style_features.append(output)
 
-    
+    def forward(self, image):
+
+        self.content_in = self.encoder(image)
+        self.style_features = []
+
+        return self.decoder(self.content_in)
